@@ -1,0 +1,26 @@
+[
+    {
+        "cost": [
+            3.0,
+            "lbs"
+        ],
+        "desc": "a fruit",
+        "id": "dcd80d0c127b4a30ae604806f920d24e",
+        "name": "apple"
+    },
+    {
+        "cost": [
+            5.0,
+            "kgs"
+        ],
+        "desc": "a pear",
+        "id": "2b028b16eed24922a328237ad0f03e27",
+        "name": "pear"
+    },
+    {
+        "cost": [],
+        "desc": null,
+        "id": "85ead10b4b8f413990ef837e97ee8e9c",
+        "name": "apple_pear"
+    }
+]
