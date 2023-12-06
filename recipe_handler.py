@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -23,7 +24,7 @@ class Units(Enum):
     tsp = 7
     gal = 8
     #### Do some conversion math here in the enum
-
+    
     def __str__(self) -> str:
         return str(self.name)
 
