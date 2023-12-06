@@ -4,7 +4,7 @@ import sqlalchemy as sqla
 import sqlalchemy.orm as orm
 from sqlalchemy import select
 from recipe_handler import Units
-from widgets import TableRowWidget, TableWidget, AdvancedTableWidget, AdvancedTableWidgetFactory
+from widgets import TableRowWidget, TableWidget, AdvancedTableWidget, AdvancedTableWidgetFactory, DragableLabel
 from context_handler import GuiContextHandler
 from context_handler import GuiContext
 from tkinter import dnd
@@ -35,7 +35,29 @@ class RecipeListFrame (customtkinter.CTkFrame):
             context_handler.notify(self.master, GuiContext.inspect_recipe, recipe=recipe_changed_to)
         else:
             context_handler.notify(self.master, GuiContext.inspect_recipe, recipe=recipe_changed_to)
-    def get_selected_recipe(self):
+
+class IngredientListFrame (customtkinter.CTkFrame):
+    def __init__(self, master: any, session:orm.Session):
+        super().__init__(master)
+        self.master = master
+        self.labels = []
+        self.ingredients: list[recipe_handler.Ingredient] = session.scalars(select(recipe_handler.Ingredient).order_by(recipe_handler.Ingredient.name)).all()
+        widget_factory = AdvancedTableWidgetFactory()
+        def create_draggable_label_widget(master) -> (DragableLabel, customtkinter.StringVar):
+            data_var = customtkinter.StringVar(master=master,value="None")
+            entry = DragableLabel(master=master, textvariable=data_var)
+            return entry, data_var
+        widget_factory.register_widget_function(0, create_draggable_label_widget, False)
+        
+        ingredient_table_data = []
+        ingredient_table_header = ["Ingredients"]
+        for ingredient in self.ingredients:
+            row = [ingredient.name]
+            ingredient_table_data.append(row)
+        self.recipe_ingredients_list_element = AdvancedTableWidget(self, table_data=ingredient_table_data, table_headers=ingredient_table_header, row_class_list=self.ingredients, widget_factory=widget_factory)
+        self.recipe_ingredients_list_element.grid(row=1,column=0, sticky="ew", columnspan=2)
+    def highlight_recipe(self, table_widget:TableRowWidget, row):
+        ### Remove?
         pass
 
 #### Recipe Selector Frame
@@ -47,7 +69,6 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         self.selected_recipe: recipe_handler.Recipe = None
         self.visible = True
         context_handler.add_listener(self.gui_context_update)
-        self.recipe_ingredients_list_element = self.recipe_ingredients_list_element = TableWidget(self, table_data=[], table_headers=[])
         self.gui_string_recipe_name = customtkinter.StringVar(self)
         self.gui_string_recipe_name.set("No Recipe")
         self.gui_string_recipe_add_button = customtkinter.StringVar(self)
@@ -58,6 +79,8 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         self.recipe_add_ingredient.grid(row = 0, column = 1, sticky="nw")
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
+
+        self.ingredient_table_widget = self.create_ingredient_table()
     def reveal_frame(self):
         self.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.visible = True
@@ -66,6 +89,16 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         self.visible = False
     def update_elements_with_recipe(self, recipe: recipe_handler.Recipe):
         self.gui_string_recipe_name.set(recipe.name)
+    def create_ingredient_table(self)-> AdvancedTableWidget:
+        widget_factory = AdvancedTableWidgetFactory()
+        widget_factory.register_default_label(0)
+        widget_factory.register_default_label(1)
+        widget_factory.register_default_label(2)
+        ingredient_table_data = []
+        ingredient_table_header = ["Ingredient", "Amount", "Unit"]
+        recipe_ingredients_list_element = AdvancedTableWidget(self, table_data=ingredient_table_data, table_headers=ingredient_table_header, widget_factory=widget_factory)
+        recipe_ingredients_list_element.grid(row=1,column=0, sticky="ew", columnspan=2)
+        return recipe_ingredients_list_element
     def update_ingredient_table(self, context_buttons: list[customtkinter.CTkFrame]):
         try:
             self.recipe_ingredients_list_element.grid_forget()
@@ -79,11 +112,11 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         self.recipe_ingredients_list_element = TableWidget(self, table_data=ingredient_table_data, table_headers=ingredient_table_header, row_class_list=self.selected_recipe.ingredients_list, row_elements=context_buttons)
         self.recipe_ingredients_list_element.grid(row=1,column=0, sticky="ew", columnspan=2)
     def gui_context_update(self, frame, context, recipe, *args, **kwargs):
-        if context == GuiContext.inspect_recipe and frame == self.master:
+        if context[1] == GuiContext.inspect_recipe and frame == self.master:
             if recipe is not self.selected_recipe:
                 self.update_selected_recipe(recipe)
             self.update_save_button_state("Edit")
-        if context == GuiContext.edit_recipe and frame == self.master:
+        if context[1] == GuiContext.edit_recipe and frame == self.master:
             self.update_save_button_state("Save")
     def update_save_button_state(self, state, recipe=None):
         if state =="Edit":
@@ -151,11 +184,20 @@ class RecipeEditorWindow (customtkinter.CTkFrame):
         self.session = session
         self.side_selection_frame = RecipeListFrame(self, self.session)
         self.side_selection_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
+        self.side_ingredient_frame = IngredientListFrame(self, self.session)
         self.main_inspection_window = RecipeInspectionFrame(self, self.session)
         self.main_inspection_window.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
+        context_handler.add_listener(self.gui_context_update)
+    def gui_context_update(self, frame, context, *args, **kwargs):
+        if context[1] == GuiContext.edit_recipe and context[1] != context[0] and frame == self:
+            self.side_selection_frame.grid_remove()
+            self.side_ingredient_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
+        if context[1] == GuiContext.inspect_recipe and context[1] != context[0] and frame == self:
+            self.side_ingredient_frame.grid_remove()
+            self.side_selection_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
 class App (customtkinter.CTk):
     """Main app body
 
