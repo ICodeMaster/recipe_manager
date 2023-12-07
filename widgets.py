@@ -49,13 +49,9 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
                     **kwargs):
         super().__init__(*args, width=width, height=height, **kwargs)
         self.configure(fg_color=("gray78", "gray21"))  # set frame color
-        self.table_data = table_data
-        ### Create empty array list until custom array added.
-        self.__table_variables = [([None]*len(table_data[0])) for i in table_data]
         self.headers = table_headers
         self.highlight_row_wrapper = highlight_row_wrapper
         self.rows: list[TableRowWidget] = []
-        self.highlighted_recipe = None
         self.widget_factory = widget_factory
         self.widget_factory.register_master(self)
         self.row_class_list = row_class_list
@@ -74,9 +70,31 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
             self.add_table_row(row)
         for column_num in range(self.grid_size()[0]):
             self.columnconfigure(column_num, weight=1)
-    def remove_row(self, row:int):
+    def remove_row_index(self, row:int):
         row_frame = self.rows.pop(row)
+        self.row_class_list.remove(row_frame.class_obj)
         row_frame.grid_forget()
+        self.update_rows_positions()
+    def remove_row(self, row:TableRowWidget):
+        self.row_class_list.remove(row.class_obj)
+        self.rows.remove(row)
+        row.grid_forget()
+        self.update_rows_positions()
+    def remove_row_by_class(self, row_class):
+        row_to_remove = None
+        for row in self.rows:
+            if row.class_obj == row_class:
+                row_to_remove = row
+        if row_to_remove:
+            self.row_class_list.remove(row_to_remove.class_obj)
+            self.rows.remove(row_to_remove)
+            row_to_remove.grid_forget()
+        else:
+            raise(KeyError)
+    def update_rows_positions(self):
+        for i, row in enumerate(self.rows):
+            row.grid(row=i)
+
     def highlight_row(self, e, row_element: TableRowWidget, row):
         row_element.configure(fg_color="red")
         if row_element.highlighted:
@@ -91,9 +109,14 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
             row_element.highlighted = True
         if self.highlight_row_wrapper is not None:
             self.highlight_row_wrapper(row_element, row)
-    def add_table_row(self, index, row_data):
+    def add_table_row(self, row_data):
+        index = len(self.rows)+1
+        if self.headers:
+            headers = True
+        else:
+            headers = False
         table_row_widget = TableRowWidget(self)
-        table_row_widget.grid(row_data = index+header_offset,column=0, padx=10,pady=5, sticky="ew", columnspan=(header_columns))
+        table_row_widget.grid(row = index+headers,column=0, padx=10,pady=5, sticky="ew", columnspan=(len(self.headers)))
         table_row_widget.bind("<Button-1>", lambda e, row_element=table_row_widget, row=index: self.highlight_row(e, row_element=row_element, row=row))
         self.rows.append(table_row_widget)
         table_row_widget.data = row_data
@@ -115,6 +138,11 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
             table_row_widget.columnconfigure(column_num, weight=1)
         for column_num in range(self.grid_size()[0]):
             self.columnconfigure(column_num, weight=1)
+    def update_table(self, data):
+        for row in self.rows:
+            self.remove_row(row)
+        for row in data:
+            self.add_table_row(row)
 class TableWidget(customtkinter.CTkScrollableFrame):
     def __init__(self, *args,
                     width: int = 150,

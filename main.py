@@ -99,18 +99,12 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         recipe_ingredients_list_element = AdvancedTableWidget(self, table_data=ingredient_table_data, table_headers=ingredient_table_header, widget_factory=widget_factory)
         recipe_ingredients_list_element.grid(row=1,column=0, sticky="ew", columnspan=2)
         return recipe_ingredients_list_element
-    def update_ingredient_table(self, context_buttons: list[customtkinter.CTkFrame]):
-        try:
-            self.recipe_ingredients_list_element.grid_forget()
-        except:
-            pass
+    def update_ingredient_table(self):
         ingredient_table_data = []
-        ingredient_table_header = ["Ingredient", "Amount", "Unit"]
         for ingredient in self.selected_recipe.ingredients_list:
             row = [ingredient.ingrd.name, ingredient.amount, ingredient.unit]
             ingredient_table_data.append(row)
-        self.recipe_ingredients_list_element = TableWidget(self, table_data=ingredient_table_data, table_headers=ingredient_table_header, row_class_list=self.selected_recipe.ingredients_list, row_elements=context_buttons)
-        self.recipe_ingredients_list_element.grid(row=1,column=0, sticky="ew", columnspan=2)
+        self.ingredient_table_widget.update_table(ingredient_table_data)
     def gui_context_update(self, frame, context, recipe, *args, **kwargs):
         if context[1] == GuiContext.inspect_recipe and frame == self.master:
             if recipe is not self.selected_recipe:
@@ -131,7 +125,7 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
                 self.reveal_frame()
             self.selected_recipe = recipe
             self.update_elements_with_recipe(recipe)
-            self.update_ingredient_table([customtkinter.CTkLabel, customtkinter.CTkLabel, customtkinter.CTkLabel])
+            self.update_ingredient_table()
         else:
             self.selected_recipe = None
             self.destroy_frame()
@@ -177,7 +171,6 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
             recipe_component.unit = Units[row.data_vars[2].get()]
         context_handler.notify(self.master, GuiContext.inspect_recipe, self.selected_recipe)
         self.session.commit()
-        self.update_ingredient_table([customtkinter.CTkLabel, customtkinter.CTkLabel, customtkinter.CTkLabel])
 class RecipeEditorWindow (customtkinter.CTkFrame):
     def __init__(self, master: any, session:orm.Session):
         super().__init__(master)
