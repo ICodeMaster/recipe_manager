@@ -11,8 +11,14 @@ class GuiContext(Enum):
     
     def __str__(self) -> str:
         return str(self.name)
-
+    
 class GuiContextHandler(object):
+
+    def __new__(cls, *args, **kw):
+         if not hasattr(cls, '_instance'):
+             orig = super(GuiContextHandler, cls)
+             cls._instance = orig.__new__(cls, *args, **kw)
+         return cls._instance
     class Context(object):
         def __init__(self, context_to, context_from, frame) -> None:
             self.context_to = context_to
@@ -30,7 +36,6 @@ class GuiContextHandler(object):
         self.frames: list[customtkinter.CTkFrame]
         self.contexts: dict[customtkinter.CTkFrame, GuiContext] = {}
         self._listeners = []
-        pass
     def define_app(self, app:customtkinter.CTk):
         self.App = app
     def register_frame(self, frame:customtkinter.CTkFrame):
