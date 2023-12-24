@@ -39,28 +39,45 @@ class RecipeListFrame (customtkinter.CTkFrame):
 
 class IngredientSelectionPopout(customtkinter.CTkToplevel):
     def __init__(self, source_window, 
-                 close_function, 
+                 row_widget_source: AdvancedTableWidget.AdvancedRow, 
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.geometry("400x300")
-        self.source_window = source_window
-        self.close_function = close_function
+        self.geometry("200x400")
+        self.source_window: RecipeInspectionFrame = source_window
+        self.row_widget_source = row_widget_source
         self.session: orm.Session = source_window.session
         self.create_ingredient_table()
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         self.attributes('-topmost', 'true')
+
+        context_handler.add_listener(self.gui_context_update)
     def create_ingredient_table(self):
         ingredient_list_widget_factory = AdvancedTableWidgetFactory()
         ingredient_list_widget_factory.register_default_label(0)
-        ingredients_list = self.session.scalars(select(recipe_handler.Ingredient).order_by(recipe_handler.Ingredient.name)).all()
+        ingredients_list = list(self.session.scalars(select(recipe_handler.Ingredient).order_by(recipe_handler.Ingredient.name)).all())
+        selected_recipe = self.source_window.selected_recipe
+        ingredients_list.remove(selected_recipe)
         list_table_data = []
+        tooltips_table_data = {}
         for ingredient in ingredients_list:
-            list_table_data.append([ingredient.name])
-        ingredient_list_widget = AdvancedTableWidget(master=self, table_data=list_table_data, row_class_list=ingredients_list,widget_factory=ingredient_list_widget_factory, highlight_row_wrapper=self.on_ingredient_select)
+            row_data = [ingredient.name]
+            list_table_data.append(row_data)
+            tooltips_table_data[ingredient]=[ingredient.desc]
+        ingredient_list_widget = AdvancedTableWidget(master=self, table_data=list_table_data, row_class_list=ingredients_list, table_tooltips=tooltips_table_data, widget_factory=ingredient_list_widget_factory, highlight_row_wrapper=self.on_ingredient_select)
         ingredient_list_widget.grid(row = 0, column=0, sticky="nsew")
     def on_ingredient_select(self, rowelement: AdvancedTableWidget.AdvancedRow, row):
         print(f"selected {row}, {rowelement.class_obj.name}")
+        context_handler.notify(self, GuiContext.select_recipe, complete=True, ingredient_to=rowelement.class_obj)
+        self.source_window.update_ingredient_in_recipe(rowelement.class_obj, self.row_widget_source)
+        self.gui_close()
+    def gui_context_update(self, frame, context:GuiContextHandler.Context, recipe=None, ingredient=None, *args, **kwargs):
+        if context.context_to != GuiContext.select_ingredient and frame != self:
+            self.gui_close()
+    def gui_close(self):
+        context_handler.remove_listener(self.gui_context_update)
+        context_handler.remove_context_frame(self)
+        self.destroy()
     
     
 #### Recipe Selector Frame
@@ -105,16 +122,16 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
             row = [ingredient.ingrd.name, ingredient.amount, ingredient.unit]
             ingredient_table_data.append(row)
         self.ingredient_table_widget.update_table(ingredient_table_data, self.selected_recipe.ingredients_list)
-    def gui_context_update(self, frame, context:GuiContextHandler.Context, recipe=None, ingredient=None, *args, **kwargs):
+    def gui_context_update(self, frame, context:GuiContextHandler.Context, recipe=None, ingredient=None, complete=False,*args, **kwargs):
         if context.is_different():
             if context.context_to == GuiContext.edit_recipe and frame == self.master:
                 self.update_save_button_state("Save")
                 self.create_editable_ingredient_list()
-        else:
-            if context.context_to == GuiContext.inspect_recipe and frame == self.master:
-                self.ingredient_table_widget.bind_widget_factory(self.define_default_widget_factory())
-                self.update_selected_recipe(recipe)
-                self.update_save_button_state("Edit")
+        
+        if context.context_to == GuiContext.inspect_recipe and frame == self.master:
+            self.ingredient_table_widget.bind_widget_factory(self.define_default_widget_factory())
+            self.update_selected_recipe(recipe)
+            self.update_save_button_state("Edit")
     def update_save_button_state(self, state):
         if state =="Edit":
             self.gui_string_recipe_add_button.set("Edit")
@@ -132,12 +149,6 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         else:
             self.selected_recipe = None
             self.destroy_frame()
-    def update_indgredient_editing_table(self, ingredient):
-        for row in self.ingredient_table_widget.rows:
-            cell = row.cell_widgets[0]
-            cell.configure(bg_color="purple")
-            cell.tooltip = tooltips.CTkToolTip(cell, message="Click to replace ingredient with selected ingredient")
-            cell.bind(lambda ingredient=ingredient, row=row: self.edit_ingredient_in_row(ingredient, row))
     def edit_ingredient_in_row(self, ingredient:recipe_handler.Ingredient, row:AdvancedTableWidget.AdvancedRow):
         recipe_component: recipe_handler.RecipeComponent = row.class_obj
         recipe_component.ingrd = ingredient
@@ -152,13 +163,12 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
         return widget_factory
     def create_editable_ingredient_list(self):
         widget_factory = AdvancedTableWidgetFactory()
-        def ingredient_selection_window_on_close():
-                print("closing recipe window")
-        def create_ingredient_selection_window(source):
-            ingredient_selection_window = IngredientSelectionPopout(source, close_function=ingredient_selection_window_on_close, master=self.master)
+        def create_ingredient_selection_window(source, row_widget:AdvancedTableWidget.AdvancedRow):
+            ingredient_selection_window = IngredientSelectionPopout(source, row_widget_source=row_widget, master=self.master)
+            context_handler.notify(ingredient_selection_window, GuiContext.select_ingredient, complete=False, ingredient=row_widget.class_obj)
         def create_ingredient_button_widget(master) -> (customtkinter.CTkEntry, customtkinter.StringVar):
             data_var = customtkinter.StringVar(master=master,value="None")
-            target_widget = customtkinter.CTkButton(master=master, textvariable=data_var, command=lambda source=self:create_ingredient_selection_window(source))
+            target_widget = customtkinter.CTkButton(master=master, textvariable=data_var, command=lambda source=self, row_widget=master:create_ingredient_selection_window(source, row_widget))
             return target_widget, data_var
         widget_factory.register_widget_function(0, create_ingredient_button_widget, False)
         def create_entry_widget(master) -> (customtkinter.CTkEntry, customtkinter.StringVar):
@@ -177,7 +187,11 @@ class RecipeInspectionFrame (customtkinter.CTkFrame):
             ingredient_table_data.append(row)
         self.ingredient_table_widget.bind_widget_factory(widget_factory)
         self.ingredient_table_widget.update_table(ingredient_table_data, self.selected_recipe.ingredients_list)
-
+    def update_ingredient_in_recipe(self, ingredient_to, source_row_element: AdvancedTableWidget.AdvancedRow):
+        recipe_component: recipe_handler.RecipeComponent = source_row_element.class_obj
+        recipe_component.ingrd = ingredient_to
+        self.session.commit()
+        self.update_ingredient_table()
     def add_ingredient_to_recipe(self):
         for i, row in enumerate(self.ingredient_table_widget.rows):
             recipe_component: recipe_handler.RecipeComponent

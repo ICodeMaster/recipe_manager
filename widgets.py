@@ -67,7 +67,11 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
         
         if row_class_list:
             for row, class_to_add in zip(table_data, row_class_list):
-                self.add_table_row(row, class_to_add, row_tooltips=table_tooltips.get(tuple(row), []))
+                try:
+                    tooltip_list = table_tooltips.get(class_to_add, [])
+                except IndexError:
+                    pass
+                self.add_table_row(row, class_to_add, row_tooltips=tooltip_list)
         else:
             for row in table_data:
                 self.add_table_row(row, None)

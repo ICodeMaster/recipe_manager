@@ -38,16 +38,26 @@ class GuiContextHandler(object):
         self._listeners = []
     def define_app(self, app:customtkinter.CTk):
         self.App = app
-    def register_frame(self, frame:customtkinter.CTkFrame):
-        self.frames.append(frame)
     def __switch_context (self, context: GuiContext, frame:customtkinter.CTkFrame):
         context_from = self.contexts.get(frame)
         context_to = context
         self.contexts[frame] = context
         context_obj = self.Context(context_to, context_from, frame)
         return context_obj
+    def remove_context_frame(self, frame):
+        try:
+            self.notify(frame, GuiContext.empty)
+            del self.contexts[frame]
+        #### Try to remove context from frame
+        except KeyError:
+            pass
     def add_listener(self, listener):
         self._listeners.append(listener)
+    def remove_listener(self, listener):
+        try:
+            self._listeners.remove(listener)
+        except KeyError:
+            pass
     def __iadd__(self, listener):
         self.add_listener(listener)
         return self
