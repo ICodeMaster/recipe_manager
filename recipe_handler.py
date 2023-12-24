@@ -24,7 +24,7 @@ class Units(Enum):
     tsp = 7
     gal = 8
     #### Do some conversion math here in the enum
-    
+
     def __str__(self) -> str:
         return str(self.name)
 

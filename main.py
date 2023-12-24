@@ -7,7 +7,6 @@ from context_handler import GuiContextHandler
 from recipe_editor import RecipeEditorWindow
 
 context_handler = GuiContextHandler()
-
 class App (customtkinter.CTk):
     """Main app body
 
@@ -23,13 +22,15 @@ class App (customtkinter.CTk):
         self.recipe_editor_window.grid(row=1, column=0, sticky="nsew")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
-        self.state("zoomed")
 
-__Ingredient_Database = 'sqlite:///recipe_manager/database/ingredient_db.db'
+__Ingredient_Database = 'sqlite:///database/ingredient_db.db'
+###__Ingredient_Database = 'sqlite:///recipe_manager/database/ingredient_db.db'
 engine = sqla.create_engine(__Ingredient_Database, echo=True)
 recipe_handler.Base.metadata.create_all(bind=engine)
 Session = orm.sessionmaker(engine)
 with Session() as session:
     app = App(session)
     context_handler.define_app(app)
+    w, h = app.winfo_screenwidth(), app.winfo_screenheight()
+    app.geometry("%dx%d+0+0" % (w, h))
     app.mainloop()

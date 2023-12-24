@@ -8,17 +8,17 @@ class GuiContext(Enum):
     select_ingredient = 2
     inspect_recipe = 3
     edit_recipe = 4
-    
+
     def __str__(self) -> str:
         return str(self.name)
-    
+
 class GuiContextHandler(object):
 
     def __new__(cls, *args, **kw):
-         if not hasattr(cls, '_instance'):
-             orig = super(GuiContextHandler, cls)
-             cls._instance = orig.__new__(cls, *args, **kw)
-         return cls._instance
+        if not hasattr(cls, '_instance'):
+            orig = super(GuiContextHandler, cls)
+            cls._instance = orig.__new__(cls, *args, **kw)
+        return cls._instance
     class Context(object):
         def __init__(self, context_to, context_from, frame) -> None:
             self.context_to = context_to
@@ -32,12 +32,12 @@ class GuiContextHandler(object):
         def __str__(self) -> str:
             return str(f"(to: {self.context_to}, from: {self.context_from})")
     def __init__(self) -> None:
-        self.App: customtkinter.CTk
+        self.app = None
         self.frames: list[customtkinter.CTkFrame]
         self.contexts: dict[customtkinter.CTkFrame, GuiContext] = {}
         self._listeners = []
-    def define_app(self, app:customtkinter.CTk):
-        self.App = app
+    def define_app(self, app):
+        self.app = app
     def __switch_context (self, context: GuiContext, frame:customtkinter.CTkFrame):
         context_from = self.contexts.get(frame)
         context_to = context
@@ -68,4 +68,6 @@ class GuiContextHandler(object):
             listener(frame, context_obj, *args, **kwargs)
     def notify(self, frame:customtkinter.CTkFrame, context: GuiContext, *args, **kwargs):
         self.on(frame, context, *args, **kwargs)
-        
+
+
+

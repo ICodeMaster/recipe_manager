@@ -2,17 +2,6 @@ import customtkinter
 import CTkToolTip as tooltips
 from tkinter import dnd
 
-class TableRowWidget(customtkinter.CTkFrame):
-    def __init__(self, *args,
-                    width: int = 100,
-                    height: int = 32,
-                    **kwargs):
-        super().__init__(*args, width=width, height=height, **kwargs)
-        self.configure(fg_color=("gray78", "gray25"))  # set frame color
-        self.highlighted = False
-        self.data = []
-        self.class_obj = None
-        self.data_vars: list[customtkinter.StringVar] = []
 class AdvancedTableWidgetFactory(object):
     def __init__(self) -> None:
         self.row_elemenet_dict = {}
@@ -40,7 +29,7 @@ class AdvancedTableWidgetFactory(object):
         self.register_widget_function(index, create_label_widget, True)
 
 class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
-        
+
     def __init__(self, *args,
                     width: int = 150,
                     height: int = 32,
@@ -64,7 +53,7 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
             for j, header in enumerate(self.headers):
                 header_label = customtkinter.CTkLabel(self, text=header, fg_color="gray30", corner_radius=6)
                 header_label.grid(row=0, column=j, padx=10, pady=10, sticky="ew")
-        
+
         if row_class_list:
             for row, class_to_add in zip(table_data, row_class_list):
                 try:
@@ -165,8 +154,9 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
             table_row_widget.columnconfigure(column_num, weight=1)
         for column_num in range(self.grid_size()[0]):
             self.columnconfigure(column_num, weight=1)
-        
-        
+        return table_row_widget
+
+
     def update_table(self, data, class_list:list):
         #### Need to slice into new list to not have bad results!
         for row in self.rows[:]:
@@ -177,4 +167,3 @@ class AdvancedTableWidget (customtkinter.CTkScrollableFrame):
     def add_tooltip_to_cell(self, widget, message):
         tooltip = tooltips.CTkToolTip(widget, message, delay=0.5)
         return tooltip
-    
